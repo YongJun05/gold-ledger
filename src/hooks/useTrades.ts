@@ -1,14 +1,14 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Trade, TradeSummary, TimeFilter, ChartDataPoint } from '@/types/trade';
+import { Transaction, GoldSummary, TimeFilter, ChartDataPoint } from '@/types/trade';
 import { subDays, subWeeks, subMonths, subYears, parseISO, isAfter, startOfDay } from 'date-fns';
 
-const STORAGE_KEY = 'gold-trades';
+const STORAGE_KEY = 'gold-transactions';
 
 const generateId = (): string => {
   return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 };
 
-const loadTrades = (): Trade[] => {
+const loadTransactions = (): Transaction[] => {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     return stored ? JSON.parse(stored) : [];
@@ -17,46 +17,150 @@ const loadTrades = (): Trade[] => {
   }
 };
 
-const saveTrades = (trades: Trade[]): void => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(trades));
+const saveTransactions = (transactions: Transaction[]): void => {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
 };
 
 export const useTrades = () => {
-  const [trades, setTrades] = useState<Trade[]>(loadTrades);
+  const [transactions, setTransactions] = useState<Transaction[]>(loadTransactions);
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('1M');
 
   useEffect(() => {
-    saveTrades(trades);
-  }, [trades]);
+    saveTransactions(transactions);
+  }, [transactions]);
 
-  const addTrade = useCallback((trade: Omit<Trade, 'id' | 'createdAt'>) => {
-    const newTrade: Trade = {
-      ...trade,
+  // Sort transactions by date (newest first)
+  const sortedTransactions = useMemo(() => {
+    return [...transactions].sort((a, b) => {
+      const dateCompare = new Date(b.date).getTime() - new Date(a.date).getTime();
+      if (dateCompare !== 0) return dateCompare;
+      // If same date, sort by createdAt
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+  }, [transactions]);
+
+  // Calculate summary using chronological order for accurate average cost
+  const summary = useMemo((): GoldSummary => {
+    // Process in chronological order for accurate tracking
+    const chronological = [...transactions].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+
+    let currentBalance = 0;
+    let totalCost = 0; // Total cost of current holdings
+    let totalRealizedProfitLoss = 0;
+    let totalBuyTransactions = 0;
+    let totalSellTransactions = 0;
+
+    chronological.forEach((tx) => {
+      if (tx.type === 'buy') {
+        totalCost += tx.price * tx.quantity;
+        currentBalance += tx.quantity;
+        totalBuyTransactions++;
+      } else if (tx.type === 'sell') {
+        // Use stored P&L if available, otherwise calculate
+        if (tx.profitLoss !== undefined) {
+          totalRealizedProfitLoss += tx.profitLoss;
+        }
+        // Reduce holdings at average cost
+        if (currentBalance > 0) {
+          const avgCost = totalCost / currentBalance;
+          const costReduction = avgCost * tx.quantity;
+          totalCost = Math.max(0, totalCost - costReduction);
+        }
+        currentBalance = Math.max(0, currentBalance - tx.quantity);
+        totalSellTransactions++;
+      }
+    });
+
+    const averageBuyPrice = currentBalance > 0 ? totalCost / currentBalance : 0;
+
+    return {
+      currentBalance,
+      averageBuyPrice,
+      totalInvested: totalCost,
+      totalRealizedProfitLoss,
+      totalBuyTransactions,
+      totalSellTransactions,
+    };
+  }, [transactions]);
+
+  // Calculate current gold balance (for validation)
+  const currentGoldBalance = useMemo(() => {
+    return summary.currentBalance;
+  }, [summary]);
+
+  // Calculate average cost at any point (for sell transactions)
+  const calculateAverageCost = useCallback((): number => {
+    const chronological = [...transactions].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+
+    let balance = 0;
+    let totalCost = 0;
+
+    chronological.forEach((tx) => {
+      if (tx.type === 'buy') {
+        totalCost += tx.price * tx.quantity;
+        balance += tx.quantity;
+      } else if (tx.type === 'sell') {
+        if (balance > 0) {
+          const avgCost = totalCost / balance;
+          totalCost -= avgCost * tx.quantity;
+        }
+        balance = Math.max(0, balance - tx.quantity);
+      }
+    });
+
+    return balance > 0 ? totalCost / balance : 0;
+  }, [transactions]);
+
+  const addBuyTransaction = useCallback((data: { date: string; price: number; quantity: number; notes: string }) => {
+    const newTransaction: Transaction = {
       id: generateId(),
+      date: data.date,
+      type: 'buy',
+      price: data.price,
+      quantity: data.quantity,
+      notes: data.notes,
       createdAt: new Date().toISOString(),
     };
-    setTrades((prev) => [newTrade, ...prev]);
+    setTransactions((prev) => [...prev, newTransaction]);
   }, []);
 
-  const updateTrade = useCallback((id: string, updates: Partial<Omit<Trade, 'id' | 'createdAt'>>) => {
-    setTrades((prev) =>
-      prev.map((trade) =>
-        trade.id === id ? { ...trade, ...updates } : trade
+  const addSellTransaction = useCallback((data: { date: string; price: number; quantity: number; notes: string }) => {
+    // Calculate P/L at time of sale using average cost
+    const avgCost = calculateAverageCost();
+    const profitLoss = (data.price - avgCost) * data.quantity;
+
+    const newTransaction: Transaction = {
+      id: generateId(),
+      date: data.date,
+      type: 'sell',
+      price: data.price,
+      quantity: data.quantity,
+      notes: data.notes,
+      createdAt: new Date().toISOString(),
+      averageCostAtSale: avgCost,
+      profitLoss,
+    };
+    setTransactions((prev) => [...prev, newTransaction]);
+  }, [calculateAverageCost]);
+
+  const updateTransaction = useCallback((id: string, updates: Partial<Omit<Transaction, 'id' | 'createdAt'>>) => {
+    setTransactions((prev) =>
+      prev.map((tx) =>
+        tx.id === id ? { ...tx, ...updates } : tx
       )
     );
   }, []);
 
-  const deleteTrade = useCallback((id: string) => {
-    setTrades((prev) => prev.filter((trade) => trade.id !== id));
+  const deleteTransaction = useCallback((id: string) => {
+    setTransactions((prev) => prev.filter((tx) => tx.id !== id));
   }, []);
 
-  const sortedTrades = useMemo(() => {
-    return [...trades].sort((a, b) => 
-      new Date(b.date).getTime() - new Date(a.date).getTime()
-    );
-  }, [trades]);
-
-  const filteredTrades = useMemo(() => {
+  // Filter transactions by time
+  const filteredTransactions = useMemo(() => {
     const now = new Date();
     let cutoffDate: Date;
 
@@ -75,90 +179,82 @@ export const useTrades = () => {
         break;
       case 'ALL':
       default:
-        return sortedTrades;
+        return sortedTransactions;
     }
 
-    return sortedTrades.filter((trade) =>
-      isAfter(parseISO(trade.date), startOfDay(cutoffDate))
+    return sortedTransactions.filter((tx) =>
+      isAfter(parseISO(tx.date), startOfDay(cutoffDate))
     );
-  }, [sortedTrades, timeFilter]);
+  }, [sortedTransactions, timeFilter]);
 
-  const summary = useMemo((): TradeSummary => {
-    let totalProfit = 0;
-    let totalInvested = 0;
-    let totalSold = 0;
-    let winCount = 0;
-    let lossCount = 0;
-    let openPositions = 0;
+  // Chart data - gold balance and cumulative P/L over time
+  const chartData = useMemo((): ChartDataPoint[] => {
+    const chronological = [...transactions].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
 
-    sortedTrades.forEach((trade) => {
-      const buyValue = trade.buyPrice * trade.quantity;
-      totalInvested += buyValue;
+    // Filter by time
+    const now = new Date();
+    let cutoffDate: Date | null = null;
 
-      if (trade.sellPrice !== null) {
-        const sellValue = trade.sellPrice * trade.quantity;
-        const profit = sellValue - buyValue;
-        totalSold += sellValue;
-        totalProfit += profit;
+    switch (timeFilter) {
+      case '1D':
+        cutoffDate = subDays(now, 1);
+        break;
+      case '1W':
+        cutoffDate = subWeeks(now, 1);
+        break;
+      case '1M':
+        cutoffDate = subMonths(now, 1);
+        break;
+      case '1Y':
+        cutoffDate = subYears(now, 1);
+        break;
+      case 'ALL':
+      default:
+        cutoffDate = null;
+    }
 
-        if (profit > 0) {
-          winCount++;
-        } else if (profit < 0) {
-          lossCount++;
+    let goldBalance = 0;
+    let cumulativeProfitLoss = 0;
+    const dataPoints: ChartDataPoint[] = [];
+
+    chronological.forEach((tx) => {
+      if (tx.type === 'buy') {
+        goldBalance += tx.quantity;
+      } else if (tx.type === 'sell') {
+        goldBalance = Math.max(0, goldBalance - tx.quantity);
+        if (tx.profitLoss !== undefined) {
+          cumulativeProfitLoss += tx.profitLoss;
         }
-      } else {
-        openPositions++;
+      }
+
+      // Only include data points within the time filter
+      if (cutoffDate === null || isAfter(parseISO(tx.date), startOfDay(cutoffDate))) {
+        dataPoints.push({
+          date: tx.date,
+          goldBalance,
+          cumulativeProfitLoss,
+        });
       }
     });
 
-    return {
-      totalProfit,
-      totalInvested,
-      totalSold,
-      winCount,
-      lossCount,
-      openPositions,
-    };
-  }, [sortedTrades]);
-
-  const chartData = useMemo((): ChartDataPoint[] => {
-    const closedTrades = filteredTrades
-      .filter((trade) => trade.sellPrice !== null)
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-    let cumulative = 0;
-    return closedTrades.map((trade) => {
-      const profitLoss = (trade.sellPrice! - trade.buyPrice) * trade.quantity;
-      cumulative += profitLoss;
-      return {
-        date: trade.date,
-        profitLoss,
-        cumulativeProfit: cumulative,
-        buyPrice: trade.buyPrice,
-      };
-    });
-  }, [filteredTrades]);
-
-  const calculateProfitLoss = useCallback((trade: Trade): number | null => {
-    if (trade.sellPrice === null) return null;
-    return (trade.sellPrice - trade.buyPrice) * trade.quantity;
-  }, []);
+    return dataPoints;
+  }, [transactions, timeFilter]);
 
   const exportToCSV = useCallback(() => {
-    const headers = ['Date', 'Buy Price (RM)', 'Sell Price (RM)', 'Quantity (g)', 'Total Buy (RM)', 'Total Sell (RM)', 'Profit/Loss (RM)', 'Notes'];
-    const rows = sortedTrades.map((trade) => {
-      const totalBuy = trade.buyPrice * trade.quantity;
-      const totalSell = trade.sellPrice !== null ? trade.sellPrice * trade.quantity : '';
-      const profitLoss = trade.sellPrice !== null ? (trade.sellPrice - trade.buyPrice) * trade.quantity : '';
+    const headers = ['Date', 'Type', 'Price (RM/g)', 'Quantity (g)', 'Total Value (RM)', 'P/L (RM)', 'Notes'];
+    const rows = sortedTransactions.map((tx) => {
+      const totalValue = tx.price * tx.quantity;
+      const profitLoss = tx.type === 'sell' && tx.profitLoss !== undefined ? tx.profitLoss.toFixed(2) : '';
       return [
-        trade.date,
-        trade.buyPrice.toFixed(2),
-        trade.sellPrice?.toFixed(2) ?? '',
-        trade.quantity.toFixed(4),
-        totalBuy.toFixed(2),
-        totalSell !== '' ? totalSell.toFixed(2) : '',
-        profitLoss !== '' ? profitLoss.toFixed(2) : '',
-        `"${trade.notes.replace(/"/g, '""')}"`,
+        tx.date,
+        tx.type.toUpperCase(),
+        tx.price.toFixed(2),
+        tx.quantity.toFixed(4),
+        totalValue.toFixed(2),
+        profitLoss,
+        `"${tx.notes.replace(/"/g, '""')}"`,
       ].join(',');
     });
 
@@ -167,22 +263,23 @@ export const useTrades = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `gold-trades-${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `gold-transactions-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-  }, [sortedTrades]);
+  }, [sortedTransactions]);
 
   return {
-    trades: sortedTrades,
-    filteredTrades,
+    transactions: sortedTransactions,
+    filteredTransactions,
     summary,
     chartData,
     timeFilter,
     setTimeFilter,
-    addTrade,
-    updateTrade,
-    deleteTrade,
-    calculateProfitLoss,
+    currentGoldBalance,
+    addBuyTransaction,
+    addSellTransaction,
+    updateTransaction,
+    deleteTransaction,
     exportToCSV,
   };
 };

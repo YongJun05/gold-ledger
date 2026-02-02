@@ -1,10 +1,10 @@
-import { TrendingUp, TrendingDown, Wallet, BarChart3, Target, Clock } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, Scale, Coins, BarChart3 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { TradeSummary } from '@/types/trade';
+import { GoldSummary } from '@/types/trade';
 import { cn } from '@/lib/utils';
 
 interface SummaryCardsProps {
-  summary: TradeSummary;
+  summary: GoldSummary;
 }
 
 const formatMYR = (value: number): string => {
@@ -16,35 +16,32 @@ const formatMYR = (value: number): string => {
 };
 
 export const SummaryCards = ({ summary }: SummaryCardsProps) => {
-  const winRate = summary.winCount + summary.lossCount > 0
-    ? ((summary.winCount / (summary.winCount + summary.lossCount)) * 100).toFixed(1)
-    : '0';
-
   const cards = [
     {
-      title: 'Total Profit/Loss',
-      value: formatMYR(summary.totalProfit),
-      icon: summary.totalProfit >= 0 ? TrendingUp : TrendingDown,
-      variant: summary.totalProfit >= 0 ? 'success' : 'destructive',
+      title: 'Gold Balance',
+      value: `${summary.currentBalance.toFixed(4)}g`,
+      icon: Scale,
+      variant: 'gold',
+    },
+    {
+      title: 'Average Buy Price',
+      value: summary.averageBuyPrice > 0 ? formatMYR(summary.averageBuyPrice) + '/g' : '—',
+      icon: Coins,
+      variant: 'default',
     },
     {
       title: 'Total Invested',
       value: formatMYR(summary.totalInvested),
+      subtitle: `${summary.totalBuyTransactions} buy${summary.totalBuyTransactions !== 1 ? 's' : ''}`,
       icon: Wallet,
       variant: 'default',
     },
     {
-      title: 'Win Rate',
-      value: `${winRate}%`,
-      subtitle: `${summary.winCount}W / ${summary.lossCount}L`,
-      icon: Target,
-      variant: 'default',
-    },
-    {
-      title: 'Open Positions',
-      value: summary.openPositions.toString(),
-      icon: Clock,
-      variant: 'muted',
+      title: 'Realized P/L',
+      value: formatMYR(summary.totalRealizedProfitLoss),
+      subtitle: `${summary.totalSellTransactions} sell${summary.totalSellTransactions !== 1 ? 's' : ''}`,
+      icon: summary.totalRealizedProfitLoss >= 0 ? TrendingUp : TrendingDown,
+      variant: summary.totalRealizedProfitLoss >= 0 ? 'success' : 'destructive',
     },
   ];
 
@@ -69,7 +66,8 @@ export const SummaryCards = ({ summary }: SummaryCardsProps) => {
                   className={cn(
                     "text-lg lg:text-2xl font-bold tracking-tight",
                     card.variant === 'success' && 'text-success',
-                    card.variant === 'destructive' && 'text-destructive'
+                    card.variant === 'destructive' && 'text-destructive',
+                    card.variant === 'gold' && 'text-gold'
                   )}
                 >
                   {card.value}
@@ -83,8 +81,8 @@ export const SummaryCards = ({ summary }: SummaryCardsProps) => {
                   "p-2 rounded-lg",
                   card.variant === 'success' && 'bg-success/10',
                   card.variant === 'destructive' && 'bg-destructive/10',
-                  card.variant === 'default' && 'bg-gold/10',
-                  card.variant === 'muted' && 'bg-muted'
+                  card.variant === 'gold' && 'bg-gold/10',
+                  card.variant === 'default' && 'bg-muted'
                 )}
               >
                 <card.icon
@@ -92,8 +90,8 @@ export const SummaryCards = ({ summary }: SummaryCardsProps) => {
                     "h-4 w-4 lg:h-5 lg:w-5",
                     card.variant === 'success' && 'text-success',
                     card.variant === 'destructive' && 'text-destructive',
-                    card.variant === 'default' && 'text-gold',
-                    card.variant === 'muted' && 'text-muted-foreground'
+                    card.variant === 'gold' && 'text-gold',
+                    card.variant === 'default' && 'text-muted-foreground'
                   )}
                 />
               </div>
