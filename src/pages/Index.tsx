@@ -3,21 +3,22 @@ import { useTheme } from '@/hooks/useTheme';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { SummaryCards } from '@/components/SummaryCards';
 import { PerformanceChart } from '@/components/PerformanceChart';
-import { TradesTable } from '@/components/TradesTable';
+import { TransactionsTable } from '@/components/TransactionsTable';
 import { Button } from '@/components/ui/button';
 import { Download, Coins } from 'lucide-react';
 
 const Index = () => {
   const {
-    trades,
+    transactions,
     summary,
     chartData,
     timeFilter,
     setTimeFilter,
-    addTrade,
-    updateTrade,
-    deleteTrade,
-    calculateProfitLoss,
+    currentGoldBalance,
+    addBuyTransaction,
+    addSellTransaction,
+    updateTransaction,
+    deleteTransaction,
     exportToCSV,
   } = useTrades();
   const { theme, toggleTheme } = useTheme();
@@ -37,7 +38,7 @@ const Index = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {trades.length > 0 && (
+            {transactions.length > 0 && (
               <Button variant="outline" size="sm" onClick={exportToCSV} className="hidden sm:flex">
                 <Download className="h-4 w-4 mr-2" />
                 Export CSV
@@ -61,12 +62,13 @@ const Index = () => {
             onTimeFilterChange={setTimeFilter}
           />
           <div className="lg:hidden">
-            <TradesTable
-              trades={trades}
-              onAddTrade={addTrade}
-              onUpdateTrade={updateTrade}
-              onDeleteTrade={deleteTrade}
-              calculateProfitLoss={calculateProfitLoss}
+            <TransactionsTable
+              transactions={transactions}
+              currentGoldBalance={currentGoldBalance}
+              onAddBuy={addBuyTransaction}
+              onAddSell={addSellTransaction}
+              onUpdateTransaction={updateTransaction}
+              onDeleteTransaction={deleteTransaction}
             />
           </div>
           <div className="hidden lg:block">
@@ -74,19 +76,20 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Trades Table - Full Width on Desktop */}
+        {/* Transactions Table - Full Width on Desktop */}
         <div className="hidden lg:block">
-          <TradesTable
-            trades={trades}
-            onAddTrade={addTrade}
-            onUpdateTrade={updateTrade}
-            onDeleteTrade={deleteTrade}
-            calculateProfitLoss={calculateProfitLoss}
+          <TransactionsTable
+            transactions={transactions}
+            currentGoldBalance={currentGoldBalance}
+            onAddBuy={addBuyTransaction}
+            onAddSell={addSellTransaction}
+            onUpdateTransaction={updateTransaction}
+            onDeleteTransaction={deleteTransaction}
           />
         </div>
 
         {/* Mobile Export Button */}
-        {trades.length > 0 && (
+        {transactions.length > 0 && (
           <div className="sm:hidden">
             <Button variant="outline" onClick={exportToCSV} className="w-full">
               <Download className="h-4 w-4 mr-2" />
