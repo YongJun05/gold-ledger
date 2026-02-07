@@ -1,6 +1,6 @@
 # Gold Ledger
 
-A modern gold trading calculator and transaction ledger built with React and TypeScript.
+A modern gold trading calculator and transaction ledger for TNG e-mas built with React and TypeScript.
 
 ## Features
 
