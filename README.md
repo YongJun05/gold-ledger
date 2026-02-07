@@ -20,7 +20,7 @@ A modern gold trading calculator and transaction ledger for TNG e-mas built with
 
 ```sh
 # Clone the repository
-git clone <YOUR_GIT_URL>
+git clone https://github.com/YongJun05/gold-ledger.git 
 
 # Navigate to the project directory
 cd gold-ledger
