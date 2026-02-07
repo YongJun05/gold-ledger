@@ -190,7 +190,7 @@ const Index = () => {
       {/* Footer */}
       <footer className="border-t py-6 mt-12">
         <div className="container text-center text-sm text-muted-foreground">
-          <p>Gold Trading Notebook • Manual Entry • No API Required</p>
+          <p>Gold Trading Notebook • Manual Entry • No API Required • Strictly For Self Use Only</p>
         </div>
       </footer>
     </div>
