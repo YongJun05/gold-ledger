@@ -72,31 +72,33 @@ const Index = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {transactions.length > 0 && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="hidden sm:flex">
-                    <Save className="h-4 w-4 mr-2" />
-                    Backup
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={exportToJSON}>
-                    <Download className="h-4 w-4 mr-2" />
-                    Download Backup (.json)
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={exportToCSV}>
-                    <Download className="h-4 w-4 mr-2" />
-                    Export CSV
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
-                    <Upload className="h-4 w-4 mr-2" />
-                    Restore Backup
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="hidden sm:flex">
+                  <Save className="h-4 w-4 mr-2" />
+                  Backup
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {transactions.length > 0 && (
+                  <>
+                    <DropdownMenuItem onClick={exportToJSON}>
+                      <Download className="h-4 w-4 mr-2" />
+                      Download Backup (.json)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={exportToCSV}>
+                      <Download className="h-4 w-4 mr-2" />
+                      Export CSV
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
+                <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Restore Backup
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <input
               ref={fileInputRef}
               type="file"
@@ -171,18 +173,18 @@ const Index = () => {
         </div>
 
         {/* Mobile Backup Menu */}
-        {transactions.length > 0 && (
-          <div className="sm:hidden space-y-2">
+        <div className="sm:hidden space-y-2">
+          {transactions.length > 0 && (
             <Button variant="outline" onClick={exportToJSON} className="w-full">
               <Download className="h-4 w-4 mr-2" />
               Download Backup
             </Button>
-            <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="w-full">
-              <Upload className="h-4 w-4 mr-2" />
-              Restore Backup
-            </Button>
-          </div>
-        )}
+          )}
+          <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="w-full">
+            <Upload className="h-4 w-4 mr-2" />
+            Restore Backup
+          </Button>
+        </div>
       </main>
 
       {/* Footer */}

@@ -8,6 +8,7 @@ import { Transaction, TransactionType } from '@/types/trade';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { TrendingUp, TrendingDown, AlertCircle } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 
 interface TransactionFormProps {
   open: boolean;
@@ -34,6 +35,7 @@ export const TransactionForm = ({
   });
 
   const [error, setError] = useState<string | null>(null);
+  const [sellAll, setSellAll] = useState(false);
 
   useEffect(() => {
     if (transaction) {
@@ -43,6 +45,7 @@ export const TransactionForm = ({
         quantity: transaction.quantity.toString(),
         notes: transaction.notes,
       });
+      setSellAll(false);
     } else {
       setFormData({
         date: format(new Date(), 'yyyy-MM-dd'),
@@ -50,9 +53,19 @@ export const TransactionForm = ({
         quantity: '',
         notes: '',
       });
+      setSellAll(false);
     }
     setError(null);
   }, [transaction, open]);
+
+  useEffect(() => {
+    if (transactionType === 'sell' && sellAll && !transaction) {
+      setFormData(prev => ({
+        ...prev,
+        quantity: currentGoldBalance.toString(),
+      }));
+    }
+  }, [sellAll, currentGoldBalance, transactionType, transaction]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -154,13 +167,35 @@ export const TransactionForm = ({
                   max={transactionType === 'sell' ? currentGoldBalance : undefined}
                   placeholder="0.0000"
                   value={formData.quantity}
-                  onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, quantity: e.target.value });
+                    if (transactionType === 'sell') setSellAll(false);
+                  }}
                   className="h-10"
+                  disabled={transactionType === 'sell' && sellAll && !transaction}
                 />
               </div>
             </div>
 
-            {transactionType === 'sell' && (
+            {transactionType === 'sell' && !transaction && (
+              <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/50">
+                <div className="flex flex-col gap-1">
+                  <Label htmlFor="sell-all" className="cursor-pointer font-medium">
+                    Sell All Gold
+                  </Label>
+                  <span className="text-xs text-muted-foreground">
+                    Available: <span className="font-mono font-medium">{currentGoldBalance.toFixed(4)}g</span>
+                  </span>
+                </div>
+                <Switch
+                  id="sell-all"
+                  checked={sellAll}
+                  onCheckedChange={setSellAll}
+                />
+              </div>
+            )}
+
+            {transactionType === 'sell' && transaction && (
               <div className="text-xs text-muted-foreground">
                 Available balance: <span className="font-mono font-medium">{currentGoldBalance.toFixed(4)}g</span>
               </div>

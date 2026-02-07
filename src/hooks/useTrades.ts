@@ -51,10 +51,13 @@ export const useTrades = () => {
     let totalRealizedProfitLoss = 0;
     let totalBuyTransactions = 0;
     let totalSellTransactions = 0;
+    let totalMoneySpentOnBuys = 0; // Total money spent on all buy transactions
 
     chronological.forEach((tx) => {
       if (tx.type === 'buy') {
-        totalCost += tx.price * tx.quantity;
+        const buyAmount = tx.price * tx.quantity;
+        totalCost += buyAmount;
+        totalMoneySpentOnBuys += buyAmount; // Track all money spent on buys
         currentBalance += tx.quantity;
         totalBuyTransactions++;
       } else if (tx.type === 'sell') {
@@ -78,7 +81,7 @@ export const useTrades = () => {
     return {
       currentBalance,
       averageBuyPrice,
-      totalInvested: totalCost,
+      totalInvested: totalMoneySpentOnBuys,
       totalRealizedProfitLoss,
       totalBuyTransactions,
       totalSellTransactions,

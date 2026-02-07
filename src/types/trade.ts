@@ -16,7 +16,7 @@ export interface Transaction {
 export interface GoldSummary {
   currentBalance: number; // grams
   averageBuyPrice: number; // MYR per gram
-  totalInvested: number; // MYR (current value of holdings at cost)
+  totalInvested: number; // MYR (total money spent on all buy transactions)
   totalRealizedProfitLoss: number; // MYR
   totalBuyTransactions: number;
   totalSellTransactions: number;
