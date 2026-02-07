@@ -268,6 +268,52 @@ export const useTrades = () => {
     URL.revokeObjectURL(url);
   }, [sortedTransactions]);
 
+  const exportToJSON = useCallback(() => {
+    const data = {
+      exportDate: new Date().toISOString(),
+      transactions: sortedTransactions,
+      summary,
+    };
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `gold-ledger-backup-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [sortedTransactions, summary]);
+
+  const importFromJSON = useCallback((file: File) => {
+    return new Promise<{ success: boolean; message: string; count?: number }>((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const content = e.target?.result as string;
+          const data = JSON.parse(content);
+          
+          if (!data.transactions || !Array.isArray(data.transactions)) {
+            resolve({ success: false, message: 'Invalid backup file format' });
+            return;
+          }
+
+          setTransactions(data.transactions);
+          resolve({ 
+            success: true, 
+            message: 'Backup restored successfully!',
+            count: data.transactions.length 
+          });
+        } catch (error) {
+          resolve({ success: false, message: 'Failed to parse backup file' });
+        }
+      };
+      reader.onerror = () => {
+        resolve({ success: false, message: 'Failed to read file' });
+      };
+      reader.readAsText(file);
+    });
+  }, []);
+
   return {
     transactions: sortedTransactions,
     filteredTransactions,
@@ -281,5 +327,7 @@ export const useTrades = () => {
     updateTransaction,
     deleteTransaction,
     exportToCSV,
+    exportToJSON,
+    importFromJSON,
   };
 };

@@ -5,7 +5,11 @@ import { SummaryCards } from '@/components/SummaryCards';
 import { PerformanceChart } from '@/components/PerformanceChart';
 import { TransactionsTable } from '@/components/TransactionsTable';
 import { Button } from '@/components/ui/button';
-import { Download, Coins } from 'lucide-react';
+import { Download, Coins, Upload, Save, AlertTriangle } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { useToast } from '@/hooks/use-toast';
+import { useRef, useState } from 'react';
 
 const Index = () => {
   const {
@@ -20,8 +24,38 @@ const Index = () => {
     updateTransaction,
     deleteTransaction,
     exportToCSV,
+    exportToJSON,
+    importFromJSON,
   } = useTrades();
   const { theme, toggleTheme } = useTheme();
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showWarning, setShowWarning] = useState(true);
+
+  const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const result = await importFromJSON(file);
+    
+    if (result.success) {
+      toast({
+        title: 'Success!',
+        description: `${result.count} transactions restored from backup`,
+      });
+    } else {
+      toast({
+        title: 'Error',
+        description: result.message,
+        variant: 'destructive',
+      });
+    }
+
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -39,11 +73,37 @@ const Index = () => {
           </div>
           <div className="flex items-center gap-2">
             {transactions.length > 0 && (
-              <Button variant="outline" size="sm" onClick={exportToCSV} className="hidden sm:flex">
-                <Download className="h-4 w-4 mr-2" />
-                Export CSV
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="hidden sm:flex">
+                    <Save className="h-4 w-4 mr-2" />
+                    Backup
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={exportToJSON}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Download Backup (.json)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={exportToCSV}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Export CSV
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Restore Backup
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json"
+              onChange={handleImport}
+              className="hidden"
+            />
             <ThemeToggle theme={theme} onToggle={toggleTheme} />
           </div>
         </div>
@@ -51,6 +111,28 @@ const Index = () => {
 
       {/* Main Content */}
       <main className="container py-6 space-y-6">
+        {/* Data Loss Warning */}
+        {showWarning && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Important: Data Stored Locally</AlertTitle>
+            <AlertDescription className="flex items-start justify-between gap-4">
+              <span>
+                Your data is stored only in your browser. If you clear browser data or use a different device, all transactions will be lost. 
+                <strong className="block mt-1">Please download backups regularly!</strong>
+              </span>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setShowWarning(false)}
+                className="shrink-0 h-auto p-1 hover:bg-transparent"
+              >
+                Dismiss
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Summary Cards */}
         <SummaryCards summary={summary} />
 
@@ -88,12 +170,16 @@ const Index = () => {
           />
         </div>
 
-        {/* Mobile Export Button */}
+        {/* Mobile Backup Menu */}
         {transactions.length > 0 && (
-          <div className="sm:hidden">
-            <Button variant="outline" onClick={exportToCSV} className="w-full">
+          <div className="sm:hidden space-y-2">
+            <Button variant="outline" onClick={exportToJSON} className="w-full">
               <Download className="h-4 w-4 mr-2" />
-              Export to CSV
+              Download Backup
+            </Button>
+            <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="w-full">
+              <Upload className="h-4 w-4 mr-2" />
+              Restore Backup
             </Button>
           </div>
         )}
