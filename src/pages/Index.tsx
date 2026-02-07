@@ -121,7 +121,7 @@ const Index = () => {
             <AlertDescription className="flex items-start justify-between gap-4">
               <span>
                 Your data is stored only in your browser. If you clear browser data or use a different device, all transactions will be lost. 
-                <strong className="block mt-1">Please download backups regularly, and download JSON FILES for restoration</strong>
+                <strong className="block mt-1">Please download backups regularly, and download JSON FILES for restoration!!!</strong>
               </span>
               <Button 
                 variant="ghost" 
